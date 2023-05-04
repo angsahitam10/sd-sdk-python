@@ -1,20 +1,22 @@
 [tool.poetry]
 name = "sd-sdk-python"
 version = "0.1.0"
-description = ""
+description = "Python helper module for the Sound Designer SDK"
 authors = ["Mark Melvin <mark.melvin@onsemi.com>"]
 readme = "README.md"
-packages = [{include = "sd_sdk_python"}]
+packages = [
+    {include = "sd_sdk_python"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"
 
-[tool.poetry.group.test.dependencies]
+[tool.poetry.group.dev-dependencies]
 pytest = "^7.2.0"
 
 [tool.pytest.ini_options]
 pythonpath = [
-  "../sd_sdk_python/"
+    "../sd_sdk_python/",
 ]
 
 [build-system]
