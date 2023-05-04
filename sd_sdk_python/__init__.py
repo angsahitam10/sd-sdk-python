@@ -35,22 +35,31 @@ def __resolve_sdk():
     """Sets the SDK environment variables and imports the sd module"""
     sdk_root = pathlib.Path(os.environ.get('SD_SDK_ROOT', __get_run_path()))
     if not sdk_root.exists() or not sdk_root.is_dir():
-        raise ImportError('Failed to find the Sound Designer SDK! Make sure you set "SD_SDK_ROOT" appropriately in your environment.')
+        raise ImportError(f'{str(sdk_root)} is not a valid location. Make sure you set %SD_SDK_ROOT% appropriately in your environment.')
 
-    sdk_bin_folder = sdk_root / _WIN_SAMPLES_PATH
+    # We'll fall back to this if we can't find sd.pyd in SD_SDK_ROOT
+    sdk_module_folder = sdk_root / _WIN_SAMPLES_PATH
 
-    if not sdk_bin_folder.exists() or not sdk_bin_folder.is_dir():
-        logging.error(f"Failed to find Windows SDK module at {str(sdk_bin_folder)}")
-        raise ImportError(f'Failed to find the Sound Designer SDK Windows samples folder! Make sure "%SD_SDK_ROOT%/{_WIN_SAMPLES_PATH}" exists.')
+    # Try to find the sd.pyd file in sdk_root
+    try_sd_pyd = sdk_root / 'sd.pyd'
+    if try_sd_pyd.exists() and try_sd_pyd.is_file():
+        logging.debug(f"Found 'sd.pyd' in {str(sdk_root)}")
+        sdk_module_folder = sdk_root
+    else:
+        logging.debug(f"Failed to find 'sd.pyd' in {str(sdk_root)}. Using {str(sdk_module_folder)} instead.")
 
-    str_sdk_bin_folder = str(sdk_bin_folder)
+    sdk_module = sdk_module_folder / 'sd.pyd'
+    sdk_config = sdk_module_folder / 'sd.config'
+
+    if not sdk_module.exists() or not sdk_module.is_file():
+        raise ImportError(f"Failed to find 'sd.pyd' in {str(sdk_module_folder)}! Make sure you set %SD_SDK_ROOT% appropriately in your environment.")
 
     # Set the SDK environment variables BEFORE attempting to import from sd
     # Note that the trailing separator is required for the SDK to work
-    os.environ['SD_MODULE_PATH'] = str_sdk_bin_folder + '\\' if not str_sdk_bin_folder else ''
-    os.environ['SD_CONFIG_PATH'] = str(sdk_bin_folder / 'sd.config')
-    os.environ["PATH"] += os.pathsep + str_sdk_bin_folder
-    sys.path.append(str_sdk_bin_folder)
+    os.environ['SD_MODULE_PATH'] = str(sdk_module.parent) + '\\'
+    os.environ['SD_CONFIG_PATH'] = str(sdk_config)
+    os.environ["PATH"] += os.pathsep + str(sdk_module.parent)
+    sys.path.append(str(sdk_module.parent))
     import sd
     globals()["sd"] = sd
 

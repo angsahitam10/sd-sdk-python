@@ -17,9 +17,6 @@ A Python module exposing useful utilities for the Sound Designer SDK.
 
 import time
 from dataclasses import dataclass
-import json
-from typing import Union
-import base64
 import sys
 import struct
 

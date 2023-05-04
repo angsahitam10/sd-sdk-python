@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sd-sdk-python"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python helper module for the Sound Designer SDK"
 authors = ["Mark Melvin <mark.melvin@onsemi.com>"]
 readme = "README.md"
