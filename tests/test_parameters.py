@@ -104,20 +104,6 @@ def test_load_param_file_async(sd, configured_device):
     configured_device.reset()
 
 
-def connect_device(ezairo_klass, sd, communication_interface, product, product_name):
-    device_info = communication_interface.DetectDevice()
-    assert device_info is not None
-    assert device_info.IsValid
-    assert device_info.FirmwareId == product_name
-
-    if not product.InitializeDevice(communication_interface):
-        product.ConfigureDevice()
-
-    assert device_info.LibraryId == product.Definition.LibraryId
-    assert device_info.ProductId == product.Definition.ProductId
-    return ezairo_klass(sd, communication_interface, device_info, product)
-
-
 @pytest.mark.skip
 @pytest.mark.needsprogrammer
 def test_read_scratch_memory(sd, synced_device):
@@ -160,3 +146,88 @@ def test_set_device_name(sd, synced_device):
     # Restore original device name
     write_device_name_parameters_in_RAM(synced_device, original_parameters)
     assert read_device_name_parameters_from_RAM(synced_device) == original_parameters
+
+######################
+## Reference code....
+######################
+def connect_device(ezairo_klass, sd, communication_interface, product, product_name):
+    device_info = communication_interface.DetectDevice()
+    assert device_info is not None
+    assert device_info.IsValid
+    assert device_info.FirmwareId == product_name
+
+    if not product.InitializeDevice(communication_interface):
+        product.ConfigureDevice()
+
+    assert device_info.LibraryId == product.Definition.LibraryId
+    assert device_info.ProductId == product.Definition.ProductId
+    return ezairo_klass(sd, communication_interface, device_info, product)
+
+def program_binaural_half(configured_device, param_file, peer_address):
+    this_path = pathlib.Path(__file__).parent.resolve()
+
+    configured_device.interface.MuteDuringCommunication = False
+
+    configured_device.mute()
+
+    # Configure for a pure tone input signal
+    configured_device.set_input_signal_type(configured_device.sd.kPureTone)
+
+    # Switch to memory 1
+    configured_device.set_current_memory(configured_device.sd.kNvmMemory1)
+
+    # Sync all parameters from the device
+    configured_device.restore_all_parameters()
+
+    # Load the parameters from the param file, but don't configure
+    # (just burn the voice alerts and manufacturing data)
+    configured_device.load_param_file(str(this_path / param_file),
+                                      configure_device=False,
+                                      write_manufacturer_data=True,
+                                      write_voice_alerts=True)
+
+    # Override the peer address
+    configured_device.set_parameter_value(configured_device.sd.kSystemNvmMemory, 'X_RF_BinauralPeerAddress2', peer_address & 0xFFFFFF)
+    configured_device.set_parameter_value(configured_device.sd.kSystemNvmMemory, 'X_RF_BinauralPeerAddress1', peer_address >> 24)
+    configured_device.burn_all_parameters()
+    configured_device.interface.ClearBondTableOnDevice()
+
+    configured_device.unmute()
+
+    # Reset the device (this must be the last thing we do as the device will disconnect)
+    configured_device.reset()
+
+
+@pytest.mark.skip
+@pytest.mark.needsprogrammer
+def test_program_binaural_pair(sd, Ezairo, communication_interface, product, product_name):
+    print("")
+    print("This test will flash two devices as a binaural pair.")
+    print("In order to do this, it will need to read the MAC addresses from both devices.")
+    print("Power on the device you want to be the peripheral (right ear) and press any key when ready.")
+    input()
+
+    peripheral = connect_device(Ezairo, sd, communication_interface, product, product_name)
+    peripheral_address = int(peripheral.product.DeviceMACAddress, 16)
+    peripheral.product.CloseDevice()
+    print(f"Peripheral MAC: {hex(peripheral_address)}")
+
+    print("Power off the peripheral and power on the central (left ear) and press any key when ready.")
+    input()
+
+    central = connect_device(Ezairo, sd, communication_interface, product, product_name)
+    central_address = int(central.product.DeviceMACAddress, 16)
+    print(f"Central MAC: {hex(central_address)}")
+    # Program the Central
+    print("Programming central...")
+    program_binaural_half(central, 'EC_Left.param', peripheral_address)
+    central.product.CloseDevice()
+
+    print("Power off the central and power on the peripheral (right ear) and press any key when ready.")
+    input()
+    peripheral = connect_device(Ezairo, sd, communication_interface, product, product_name)
+    # Program the Peripheral
+    print("Programming peripheral...")
+    program_binaural_half(peripheral, 'EC_Right.param', central_address)
+    peripheral.product.CloseDevice()
+    print("Done!")
