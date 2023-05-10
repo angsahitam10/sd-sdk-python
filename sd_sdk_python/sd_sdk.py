@@ -81,6 +81,11 @@ class Ezairo:
     device_info: object
     product: object
 
+    def __post_init__(self):
+        if type(self.device_info) == self.sd.DeviceInfo:
+            # Convert to richer dataclass automatically
+            self.device_info = DeviceInfo(self.device_info)
+
     def load_param_file(self, param_file, configure_device=False, write_manufacturer_data=False, write_voice_alerts=False):
         if self.product is not None:
             self.product.LoadParamFile(str(param_file), configure_device, write_manufacturer_data, write_voice_alerts)

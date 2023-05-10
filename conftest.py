@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 def set_sdk_root(value):
     path_value = Path(value)
-    if not path_value.is_dir() or not path_value.is_dir():
+    if not path_value.exists() or not path_value.is_dir():
         raise pytest.UsageError(f"{value} is not a valid path")
 
     os.environ['SD_SDK_ROOT'] = str(path_value)
