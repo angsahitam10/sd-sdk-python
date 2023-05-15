@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "sd-sdk-python"
 homepage = "https://github.com/markmelvin-onsemi/sd-sdk-python"
-version = "0.2.1"
+version = "0.2.2"
 description = "Python helper module for the Sound Designer SDK"
 authors = ["Mark Melvin <mark.melvin@onsemi.com>"]
 readme = "README.md"
