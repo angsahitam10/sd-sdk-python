@@ -52,6 +52,7 @@ class DeviceInfo:
     radio_soft_device_version: str = ""
     hybrid_serial: int = 0
     hybrid_revision: int = 0
+    hybrid_tester: int = 0
 
     def __post_init__(self):
         assert self._info is not None
@@ -70,6 +71,7 @@ class DeviceInfo:
         self.radio_soft_device_version = self._info.RadioSoftDeviceVersion
         self.hybrid_serial = self._info.HybridSerial
         self.hybrid_revision = self._info.HybridRevision
+        self.hybrid_tester = self._info.HybridTester
 
     def to_dict(self,) -> dict:
         return {k:v for k,v in self.__dict__.items() if not k.startswith('_')}
