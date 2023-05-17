@@ -111,6 +111,21 @@ def test_read_scratch_memory(sd, synced_device):
     print([hex(w) for w in data], len(data))
 
 
+def read_complete_name_parameters_from_RAM(device):
+    complete_name0 = device.get_global_parameter_in_RAM('X_RF_CompleteName0')
+    complete_name1 = device.get_global_parameter_in_RAM('X_RF_CompleteName1')
+    complete_name2 = device.get_global_parameter_in_RAM('X_RF_CompleteName2')
+    complete_name3 = device.get_global_parameter_in_RAM('X_RF_CompleteName3')
+    complete_name4 = device.get_global_parameter_in_RAM('X_RF_CompleteName4')
+    complete_name5 = device.get_global_parameter_in_RAM('X_RF_CompleteName5')
+    complete_name6 = device.get_global_parameter_in_RAM('X_RF_CompleteName6')
+    complete_name7 = device.get_global_parameter_in_RAM('X_RF_CompleteName7')
+    return [complete_name0, complete_name1, complete_name2, complete_name3, complete_name4, complete_name5, complete_name6, complete_name7]
+
+def write_complete_name_parameters_in_RAM(device, new_parameters):
+    for i, param in enumerate(new_parameters):
+        device.set_global_parameter_in_EEPROM(f'X_RF_CompleteName{i}', param)
+
 def read_device_name_parameters_from_RAM(device):
     device_name0 = device.get_global_parameter_in_RAM('X_RF_DeviceName0')
     device_name1 = device.get_global_parameter_in_RAM('X_RF_DeviceName1')
@@ -128,7 +143,7 @@ def write_device_name_parameters_in_RAM(device, new_parameters):
 
 @pytest.mark.skip
 @pytest.mark.needsprogrammer
-def test_set_device_name(sd, synced_device):
+def test_set_device_name(synced_device):
     original_parameters = read_device_name_parameters_from_RAM(synced_device)
     original_device_name = synced_device.parameters_to_device_name(original_parameters)
     assert synced_device.device_name_to_parameters(original_device_name) == original_parameters
@@ -147,87 +162,32 @@ def test_set_device_name(sd, synced_device):
     write_device_name_parameters_in_RAM(synced_device, original_parameters)
     assert read_device_name_parameters_from_RAM(synced_device) == original_parameters
 
-######################
-## Reference code....
-######################
-def connect_device(ezairo_klass, sd, communication_interface, product, product_name):
-    device_info = communication_interface.DetectDevice()
-    assert device_info is not None
-    assert device_info.IsValid
-    assert device_info.FirmwareId == product_name
-
-    if not product.InitializeDevice(communication_interface):
-        product.ConfigureDevice()
-
-    assert device_info.LibraryId == product.Definition.LibraryId
-    assert device_info.ProductId == product.Definition.ProductId
-    return ezairo_klass(sd, communication_interface, device_info, product)
-
-def program_binaural_half(configured_device, param_file, peer_address):
-    this_path = pathlib.Path(__file__).parent.resolve()
-
-    configured_device.interface.MuteDuringCommunication = False
-
-    configured_device.mute()
-
-    # Configure for a pure tone input signal
-    configured_device.set_input_signal_type(configured_device.sd.kPureTone)
-
-    # Switch to memory 1
-    configured_device.set_current_memory(configured_device.sd.kNvmMemory1)
-
-    # Sync all parameters from the device
-    configured_device.restore_all_parameters()
-
-    # Load the parameters from the param file, but don't configure
-    # (just burn the voice alerts and manufacturing data)
-    configured_device.load_param_file(str(this_path / param_file),
-                                      configure_device=False,
-                                      write_manufacturer_data=True,
-                                      write_voice_alerts=True)
-
-    # Override the peer address
-    configured_device.set_parameter_value(configured_device.sd.kSystemNvmMemory, 'X_RF_BinauralPeerAddress2', peer_address & 0xFFFFFF)
-    configured_device.set_parameter_value(configured_device.sd.kSystemNvmMemory, 'X_RF_BinauralPeerAddress1', peer_address >> 24)
-    configured_device.burn_all_parameters()
-    configured_device.interface.ClearBondTableOnDevice()
-
-    configured_device.unmute()
-
-    # Reset the device (this must be the last thing we do as the device will disconnect)
-    configured_device.reset()
-
-
-@pytest.mark.skip
 @pytest.mark.needsprogrammer
-def test_program_binaural_pair(sd, Ezairo, communication_interface, product, product_name):
-    print("")
-    print("This test will flash two devices as a binaural pair.")
-    print("In order to do this, it will need to read the MAC addresses from both devices.")
-    print("Power on the device you want to be the peripheral (right ear) and press any key when ready.")
-    input()
+def test_device_name_encode_decode(sd, synced_device):
+    name = 'HörgerätHörgertttt'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x747474, 0x0]
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name
 
-    peripheral = connect_device(Ezairo, sd, communication_interface, product, product_name)
-    peripheral_address = int(peripheral.product.DeviceMACAddress, 16)
-    peripheral.product.CloseDevice()
-    print(f"Peripheral MAC: {hex(peripheral_address)}")
+    name = 'HörgerätHörgertttä'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa40000]
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name
 
-    print("Power off the peripheral and power on the central (left ear) and press any key when ready.")
-    input()
+    name = 'HörgerätHörgertttä1'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43100]
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name
 
-    central = connect_device(Ezairo, sd, communication_interface, product, product_name)
-    central_address = int(central.product.DeviceMACAddress, 16)
-    print(f"Central MAC: {hex(central_address)}")
-    # Program the Central
-    print("Programming central...")
-    program_binaural_half(central, 'EC_Left.param', peripheral_address)
-    central.product.CloseDevice()
+    name = 'HörgerätHörgertttä12'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43132]
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name
 
-    print("Power off the central and power on the peripheral (right ear) and press any key when ready.")
-    input()
-    peripheral = connect_device(Ezairo, sd, communication_interface, product, product_name)
-    # Program the Peripheral
-    print("Programming peripheral...")
-    program_binaural_half(peripheral, 'EC_Right.param', central_address)
-    peripheral.product.CloseDevice()
-    print("Done!")
+    name = 'HörgerätHörgertttä1ä'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43100]
+    assert encoded_parameters == expected_parameters
+    assert synced_device.parameters_to_device_name(encoded_parameters) != name
+    # Name should be truncated
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name[:-1]

@@ -272,16 +272,22 @@ class Ezairo:
     @staticmethod
     def device_name_to_parameters(name):
         params = [0]*8
-        # Clip length to 24 bytes (eight 24-bit parameters)
-        name = name.encode('utf-8')[:7*3]
-        for i in range(0, len(name), 3):
+        encoded_bytes = []
+        for character in name:
+            enc = character.encode('utf-8')
+            # Clip length to 24 bytes (eight 24-bit parameters)
+            if (len(encoded_bytes) + len(enc)) > 8*3:
+                break
+            encoded_bytes += [int(w) for w in enc]
+
+        # Pack encoded_bytes into 24-bit parameters
+        for i in range(0, len(encoded_bytes), 3):
             value = 0
-            substr = name[i:i+3]
+            substr = encoded_bytes[i:i+3]
             for j, char in enumerate(substr):
-                value |= (int(char) << (16 - j*8))
+                value |= (char << (16 - j*8))
             params[i // 3] = value
         return params
-
 
 def wait_for_async(_async, timeout_seconds=1.0, sleep_time_seconds=0.01):
     """Waits for an AsyncResult to finish"""
