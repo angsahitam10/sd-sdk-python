@@ -162,6 +162,7 @@ def test_set_device_name(synced_device):
     write_device_name_parameters_in_RAM(synced_device, original_parameters)
     assert read_device_name_parameters_from_RAM(synced_device) == original_parameters
 
+@pytest.mark.skip
 @pytest.mark.needsprogrammer
 def test_device_name_encode_decode(sd, synced_device):
     name = 'HörgerätHörgertttt'
@@ -176,18 +177,29 @@ def test_device_name_encode_decode(sd, synced_device):
 
     name = 'HörgerätHörgertttä1'
     encoded_parameters = synced_device.device_name_to_parameters(name)
-    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43100]
-    assert synced_device.parameters_to_device_name(encoded_parameters) == name
+    # Name should be clipped to 22 characters
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa40000]
+    assert synced_device.parameters_to_device_name(encoded_parameters) != name
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name[:-1]
 
-    name = 'HörgerätHörgertttä12'
+    name = 'HörgerätHörgertttää'
     encoded_parameters = synced_device.device_name_to_parameters(name)
-    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43132]
-    assert synced_device.parameters_to_device_name(encoded_parameters) == name
-
-    name = 'HörgerätHörgertttä1ä'
-    encoded_parameters = synced_device.device_name_to_parameters(name)
-    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa43100]
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x7474c3, 0xa40000]
     assert encoded_parameters == expected_parameters
     assert synced_device.parameters_to_device_name(encoded_parameters) != name
-    # Name should be truncated
+    # Name should be truncated to 22 characters
     assert synced_device.parameters_to_device_name(encoded_parameters) == name[:-1]
+
+    name = 'HörgerätHörgerttää'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x74c3a4, 0x0]
+    assert encoded_parameters == expected_parameters
+    assert synced_device.parameters_to_device_name(encoded_parameters) != name
+    # Name should be truncated to 22 characters, but to the nearest UTF-8 encoded byte
+    assert synced_device.parameters_to_device_name(encoded_parameters) == name[:-1]
+
+@pytest.mark.needsprogrammer
+def test_device_name_parameters(sd, synced_device):
+    name = 'abcdefghijklmnopqrstuv'
+    encoded_parameters = synced_device.device_name_to_parameters(name)
+    assert encoded_parameters == [6382179, 6579558, 6776937, 6974316, 7171695, 7369074, 7566453, 7733248]

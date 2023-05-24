@@ -108,9 +108,13 @@ class Ezairo:
         if self.product is not None:
             self.product.InputSignal = signal_type
 
+    def get_current_memory(self,):
+        if self.product is not None:
+            return self.product.CurrentMemory
+
     def set_current_memory(self, memory_number, read_parameters=False):
         if self.product is not None:
-            self.product.CurrentMemory = memory_number
+            self.product.SwitchToMemory(memory_number)
             if self.interface is not None and read_parameters:
                 self.product.ReadParameters(self.sd.kActiveMemory)
 
@@ -175,9 +179,15 @@ class Ezairo:
 
     def restore_all_parameters(self,):
         if self.product is not None and self.interface is not None:
+            # Back up current memory
+            current_memory = self.get_current_memory()
+
             self.restore_system_parameters()
             for i in range(len(self.product.Memories)):
                 self.restore_profile_parameters(i)
+
+            # Restore original memory
+            self.set_current_memory(current_memory, read_parameters=False)
 
     def restore_system_parameters(self,):
         if self.product is not None and self.interface is not None:
@@ -275,8 +285,8 @@ class Ezairo:
         encoded_bytes = []
         for character in name:
             enc = character.encode('utf-8')
-            # Clip length to 24 bytes (eight 24-bit parameters)
-            if (len(encoded_bytes) + len(enc)) > 8*3:
+            # Clip length to 22 bytes (maximum allowable name length)
+            if (len(encoded_bytes) + len(enc)) > 22:
                 break
             encoded_bytes += [int(w) for w in enc]
 
