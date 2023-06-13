@@ -99,7 +99,7 @@ def pytest_collection_modifyitems(config, items):
         if "needsprogrammer" in item.keywords:
             item.add_marker(skip_needsprogrammer)
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def programmer(request):
     programmer = request.config.getoption('--programmer').upper()
     if programmer == 'CAA':

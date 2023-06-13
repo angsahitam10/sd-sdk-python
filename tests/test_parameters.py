@@ -12,8 +12,7 @@ def synced_device(sd, configured_device):
     configured_device.set_current_memory(sd.kNvmMemory1)
     # Sync all parameters from the device
     configured_device.restore_all_parameters()
-    # Switch to memory 1 (non-EC memory)
-    configured_device.set_current_memory(sd.kNvmMemory1)
+    assert configured_device.get_current_memory() == sd.kNvmMemory1
     yield configured_device
 
 def test_not_initialized_fail(sd, product):
@@ -31,8 +30,8 @@ def test_not_initialized_fail(sd, product):
 def test_count_parameters(configured_device):
     system_param_count, memory_param_counts = configured_device.count_parameters()
     # print(system_param_count, memory_param_counts)
-    # 642 [592, 592, 592, 592, 592, 592, 592, 592]
-    assert system_param_count == 642
+    # 650 [592, 592, 592, 592, 592, 592, 592, 592]
+    assert system_param_count == 650
     assert len(memory_param_counts) == 8
     for c in memory_param_counts:
         assert c == 592
@@ -104,27 +103,26 @@ def test_load_param_file_async(sd, configured_device):
     configured_device.reset()
 
 
-@pytest.mark.skip
 @pytest.mark.needsprogrammer
 def test_read_scratch_memory(sd, synced_device):
     data = synced_device.read_scratch_memory()
     print([hex(w) for w in data], len(data))
 
 
-def read_complete_name_parameters_from_RAM(device):
-    complete_name0 = device.get_global_parameter_in_RAM('X_RF_CompleteName0')
-    complete_name1 = device.get_global_parameter_in_RAM('X_RF_CompleteName1')
-    complete_name2 = device.get_global_parameter_in_RAM('X_RF_CompleteName2')
-    complete_name3 = device.get_global_parameter_in_RAM('X_RF_CompleteName3')
-    complete_name4 = device.get_global_parameter_in_RAM('X_RF_CompleteName4')
-    complete_name5 = device.get_global_parameter_in_RAM('X_RF_CompleteName5')
-    complete_name6 = device.get_global_parameter_in_RAM('X_RF_CompleteName6')
-    complete_name7 = device.get_global_parameter_in_RAM('X_RF_CompleteName7')
-    return [complete_name0, complete_name1, complete_name2, complete_name3, complete_name4, complete_name5, complete_name6, complete_name7]
+def read_gap_device_name_parameters_from_RAM(device):
+    gap_device_name0 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName0')
+    gap_device_name1 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName1')
+    gap_device_name2 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName2')
+    gap_device_name3 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName3')
+    gap_device_name4 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName4')
+    gap_device_name5 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName5')
+    gap_device_name6 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName6')
+    gap_device_name7 = device.get_global_parameter_in_RAM('X_RF_GAPDeviceName7')
+    return [gap_device_name0, gap_device_name1, gap_device_name2, gap_device_name3, gap_device_name4, gap_device_name5, gap_device_name6, gap_device_name7]
 
-def write_complete_name_parameters_in_RAM(device, new_parameters):
+def write_gap_device_name_parameters_in_RAM(device, new_parameters):
     for i, param in enumerate(new_parameters):
-        device.set_global_parameter_in_EEPROM(f'X_RF_CompleteName{i}', param)
+        device.set_global_parameter_in_EEPROM(f'X_RF_GAPDeviceName{i}', param)
 
 def read_device_name_parameters_from_RAM(device):
     device_name0 = device.get_global_parameter_in_RAM('X_RF_DeviceName0')
@@ -141,7 +139,6 @@ def write_device_name_parameters_in_RAM(device, new_parameters):
     for i, param in enumerate(new_parameters):
         device.set_global_parameter_in_EEPROM(f'X_RF_DeviceName{i}', param)
 
-@pytest.mark.skip
 @pytest.mark.needsprogrammer
 def test_set_device_name(synced_device):
     original_parameters = read_device_name_parameters_from_RAM(synced_device)
@@ -150,6 +147,7 @@ def test_set_device_name(synced_device):
 
     # Override device name
     new_name = 'Hörgerät'
+    assert original_device_name != new_name
     new_parameters = synced_device.device_name_to_parameters(new_name)
     write_device_name_parameters_in_RAM(synced_device, new_parameters)
 
@@ -162,9 +160,31 @@ def test_set_device_name(synced_device):
     write_device_name_parameters_in_RAM(synced_device, original_parameters)
     assert read_device_name_parameters_from_RAM(synced_device) == original_parameters
 
-@pytest.mark.skip
+
 @pytest.mark.needsprogrammer
-def test_device_name_encode_decode(sd, synced_device):
+def test_set_gap_device_name(synced_device):
+    original_parameters = read_gap_device_name_parameters_from_RAM(synced_device)
+    original_gap_device_name = synced_device.parameters_to_device_name(original_parameters)
+    assert synced_device.device_name_to_parameters(original_gap_device_name) == original_parameters
+
+    # Override device name
+    new_name = 'Hörgerät'
+    assert original_gap_device_name != new_name
+    new_parameters = synced_device.device_name_to_parameters(new_name)
+    write_device_name_parameters_in_RAM(synced_device, new_parameters)
+
+    written_parameters = read_device_name_parameters_from_RAM(synced_device)
+    written_name = synced_device.parameters_to_device_name(written_parameters)
+
+    assert written_name == new_name
+
+    # Restore original device name
+    write_device_name_parameters_in_RAM(synced_device, original_parameters)
+    assert read_device_name_parameters_from_RAM(synced_device) == original_parameters
+
+
+@pytest.mark.needsprogrammer
+def test_device_name_encode_decode(synced_device):
     name = 'HörgerätHörgertttt'
     encoded_parameters = synced_device.device_name_to_parameters(name)
     expected_parameters = [0x48c3b6, 0x726765, 0x72c3a4, 0x7448c3, 0xb67267, 0x657274, 0x747474, 0x0]
@@ -198,8 +218,9 @@ def test_device_name_encode_decode(sd, synced_device):
     # Name should be truncated to 22 characters, but to the nearest UTF-8 encoded byte
     assert synced_device.parameters_to_device_name(encoded_parameters) == name[:-1]
 
+
 @pytest.mark.needsprogrammer
-def test_device_name_parameters(sd, synced_device):
+def test_device_name_parameters(synced_device):
     name = 'abcdefghijklmnopqrstuv'
     encoded_parameters = synced_device.device_name_to_parameters(name)
     assert encoded_parameters == [6382179, 6579558, 6776937, 6974316, 7171695, 7369074, 7566453, 7733248]

@@ -179,15 +179,9 @@ class Ezairo:
 
     def restore_all_parameters(self,):
         if self.product is not None and self.interface is not None:
-            # Back up current memory
-            current_memory = self.get_current_memory()
-
             self.restore_system_parameters()
             for i in range(len(self.product.Memories)):
                 self.restore_profile_parameters(i)
-
-            # Restore original memory
-            self.set_current_memory(current_memory, read_parameters=False)
 
     def restore_system_parameters(self,):
         if self.product is not None and self.interface is not None:
